@@ -1,0 +1,11 @@
+const pages=[...document.querySelectorAll('.page')];
+function show(id){pages.forEach(p=>p.classList.toggle('active',p.id===id));if(['savings','personal'].includes(id))loadAccount(id)}
+document.addEventListener('click',e=>{const id=e.target.dataset.page;if(id)show(id)});
+const token=()=>localStorage.getItem('bank_token');
+function updateNav(){document.getElementById('authBtn').classList.toggle('hidden',!!token());document.getElementById('logout').classList.toggle('hidden',!token())}
+document.getElementById('logout').onclick=()=>{localStorage.clear();updateNav();show('home')};
+async function send(url,data){const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});const j=await r.json();if(!r.ok)throw Error(j.error||'Request failed');return j}
+document.getElementById('registerForm').onsubmit=async e=>{e.preventDefault();const msg=document.getElementById('registerMsg');try{const j=await send('/api/auth/register',Object.fromEntries(new FormData(e.target)));msg.textContent=j.message+' Please sign in.';e.target.reset()}catch(x){msg.textContent=x.message}};
+document.getElementById('loginForm').onsubmit=async e=>{e.preventDefault();const msg=document.getElementById('loginMsg');try{const j=await send('/api/auth/login',Object.fromEntries(new FormData(e.target)));localStorage.setItem('bank_token',j.token);localStorage.setItem('bank_user',JSON.stringify(j.user));updateNav();show('savings')}catch(x){msg.textContent=x.message}};
+async function loadAccount(type){const box=document.getElementById(type+'Data');if(!token()){box.textContent='Please sign in to view this account.';return}box.textContent='Loading...';try{const r=await fetch('/api/accounts/'+type,{headers:{Authorization:'Bearer '+token()}});const a=await r.json();if(!r.ok)throw Error(a.error);box.innerHTML=`<div class="details"><small>Account number</small><strong>${a.account_number}</strong><small>Available balance</small><div class="balance">₹${a.balance.toLocaleString('en-IN',{minimumFractionDigits:2})}</div><h3>Recent transactions</h3>${a.transactions.length?a.transactions.map(t=>`<div class="tx"><span>${t.description||t.transaction_type}</span><strong>₹${t.amount.toFixed(2)}</strong></div>`).join(''):'<p>No transactions yet.</p>'}</div>`}catch(x){box.textContent=x.message}}
+updateNav();
