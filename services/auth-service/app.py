@@ -33,13 +33,56 @@ def register():
         conn.rollback(); return jsonify(error="Email already registered"),409
     finally: cur.close(); conn.close()
 
+#@app.post("/login")
+#def login():
+#    data=request.get_json(silent=True) or {}
+  #  conn=db(); cur=conn.cursor(dictionary=True)
+   # cur.execute("SELECT * FROM users WHERE email=%s",((data.get("email") or "").strip().lower(),)); user=cur.fetchone()
+   # cur.close(); conn.close()
+   # if not user or not check_password_hash(user["password_hash"],data.get("password", "")):
+    #    return jsonify(error="Invalid email or password"),401
+    #token=jwt.encode({"sub": str(user["id"]),"name":user["full_name"],"exp":datetime.datetime.now(datetime.timezone.utc)+datetime.timedelta(hours=8)},os.getenv("JWT_SECRET"),algorithm="HS256")
+    #return jsonify(token=token,user={"id":user["id"],"full_name":user["full_name"],"email":user["email"]})
 @app.post("/login")
 def login():
-    data=request.get_json(silent=True) or {}
-    conn=db(); cur=conn.cursor(dictionary=True)
-    cur.execute("SELECT * FROM users WHERE email=%s",((data.get("email") or "").strip().lower(),)); user=cur.fetchone()
-    cur.close(); conn.close()
-    if not user or not check_password_hash(user["password_hash"],data.get("password", "")):
-        return jsonify(error="Invalid email or password"),401
-    token=jwt.encode({"sub":str(user["id"]),"name":user["full_name"],"exp":datetime.datetime.now(datetime.timezone.utc)+datetime.timedelta(hours=8)},os.getenv("JWT_SECRET"),algorithm="HS256")
-    return jsonify(token=token,user={"id":user["id"],"full_name":user["full_name"],"email":user["email"]})
+    data = request.get_json(silent=True) or {}
+
+    conn = db()
+    cur = conn.cursor(dictionary=True)
+
+    try:
+        cur.execute(
+            "SELECT * FROM users WHERE email=%s",
+            ((data.get("email") or "").strip().lower(),)
+        )
+        user = cur.fetchone()
+
+        if not user or not check_password_hash(
+            user["password_hash"],
+            data.get("password", "")
+        ):
+            return jsonify(error="Invalid email or password"), 401
+
+        token = jwt.encode(
+            {
+                "sub": str(user["id"]),
+                "name": user["full_name"],
+                "exp": datetime.datetime.now(datetime.timezone.utc)
+                + datetime.timedelta(hours=1)
+            },
+            os.getenv("JWT_SECRET"),
+            algorithm="HS256"
+        )
+
+        return jsonify(
+            token=token,
+            user={
+                "id": user["id"],
+                "full_name": user["full_name"],
+                "email": user["email"]
+            }
+        )
+
+    finally:
+        cur.close()
+        conn.close()
